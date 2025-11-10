@@ -1,7 +1,7 @@
-from sentence_transformers import SentenceTransformer
 import torch.nn.functional as F
 import torch
-from typing import Tuple
+from typing import Tuple, List, Dict, Callable
+from heapq import nlargest
 
 class Similarity:
     def __init__(self, encoder_model: str = "BAAI/bge-large-en-v1.5"):
@@ -60,3 +60,130 @@ class Similarity:
         scores = query_embed @ kg_embeds.T
         top_k_indices = torch.topk(torch.tensor(scores), top_k).indices.tolist()[0]
         return [(candidates[i], scores[0][i].item()) for i in top_k_indices]
+
+    def score(
+        self,
+        candidate_entity: str,
+        explicit_entities: List[str],
+        pseudo_relations: List[str],
+        KG: Dict[str, List[Tuple[str, str]]],
+        sim_func: Callable[[str, str], float],
+        normalize: bool = True
+    ) -> float:
+        """
+        Compute the semantic matching score of a candidate entity `candidate_entity`
+        for resolving an unknown node in a pseudo-subgraph, following Eq. (5) in ClaimPKG.
+
+        The score is computed by summing the similarity between the pseudo-relations
+        (relations connected to the unknown entity) and the actual relations in the KG
+        that link the candidate to explicit entities.
+
+        Parameters
+        ----------
+        candidate_entity : str
+            The entity in the KG being evaluated as a possible replacement for an unknown node.
+        explicit_entities : List[str]
+            A list of known (explicit) entities connected to the unknown in the pseudo-subgraph.
+        pseudo_relations : List[str]
+            The corresponding relations between the unknown and each explicit entity.
+        KG : Dict[str, List[Tuple[str, str]]]
+            The knowledge graph, represented as a dictionary:
+            { head_entity: [(relation, tail_entity), ...], ... }.
+        sim_func : Callable[[str, str], float]
+            Function computing similarity between two relation strings (e.g., embedding cosine similarity).
+        normalize : bool, optional
+            Whether to normalize the final score by number of relations, default=True.
+
+        Returns
+        -------
+        float
+            The cumulative similarity score representing how well the candidate matches
+            the pseudo-relations and connects to the explicit entities.
+        """
+        total_score = 0.0
+        match_count = 0
+
+        for e_ui, r_ui in zip(explicit_entities, pseudo_relations):
+            kg_edges = KG.get(e_ui, [])
+            for r, tail in kg_edges:
+                if tail == candidate_entity:
+                    sim_val = sim_func(r_ui, r)
+                    total_score += sim_val
+                    match_count += 1
+
+        if normalize and match_count > 0:
+            total_score /= match_count
+
+        return total_score
+
+    def rank_candidates(
+        self,
+        candidate_sets: List[List[str]],
+        explicit_entities: List[str],
+        pseudo_relations: List[str],
+        KG: Dict[str, List[Tuple[str, str]]],
+        sim_func: Callable[[str, str], float],
+        k1: int = 3,
+        normalize: bool = True,
+        aggregate: str = "max"
+    ) -> List[Tuple[str, float]]:
+        """
+        Rank candidate entities based on their relevance to the unknown entity group
+        using the scoring mechanism defined in Eq. (5)-(6) of ClaimPKG.
+
+        Parameters
+        ----------
+        candidate_sets : List[List[str]]
+            A list of candidate lists, each corresponding to one explicit entity e_ui.
+            For example: [[cand1, cand2], [cand3, cand4]].
+        explicit_entities : List[str]
+            Entities directly connected to the unknown entity in the pseudo-subgraph.
+        pseudo_relations : List[str]
+            Relations corresponding to each explicit entity.
+        KG : Dict[str, List[Tuple[str, str]]]
+            The knowledge graph data structure.
+        sim_func : Callable[[str, str], float]
+            Function measuring similarity between two relations.
+        k1 : int, optional
+            Number of top candidates to select (default=3).
+        normalize : bool, optional
+            Whether to normalize the score of each candidate (default=True).
+        aggregate : str, optional
+            Aggregation strategy for merging candidate scores from multiple sets.
+            Options:
+            - "max"  : keep the maximum score per entity
+            - "mean" : average over occurrences
+            - "sum"  : sum over occurrences
+
+        Returns
+        -------
+        List[Tuple[str, float]]
+            A list of tuples (candidate_entity, score), sorted descending by score.
+        """
+        scored = {}
+
+        # Evaluate all candidates from each set
+        for candidates in candidate_sets:
+            for c in candidates:
+                s = self.score(c, explicit_entities, pseudo_relations, KG, sim_func, normalize)
+                if c not in scored:
+                    scored[c] = [s]
+                else:
+                    scored[c].append(s)
+
+        # Aggregate scores from multiple occurrences
+        aggregated_scores = {}
+        for c, vals in scored.items():
+            if aggregate == "max":
+                aggregated_scores[c] = max(vals)
+            elif aggregate == "mean":
+                aggregated_scores[c] = sum(vals) / len(vals)
+            elif aggregate == "sum":
+                aggregated_scores[c] = sum(vals)
+            else:
+                raise ValueError(f"Unknown aggregate mode: {aggregate}")
+
+        # Select top-k1 highest scoring candidates
+        topk = nlargest(k1, aggregated_scores.items(), key=lambda x: x[1])
+
+        return topk
