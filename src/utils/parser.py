@@ -1,5 +1,6 @@
 from typing import Tuple
 
+
 def str_to_triplet(s: str) -> Tuple[str, str, str]:
     """
     Parse a single ERE (entity-relation-entity) string into a 3-tuple: (subject, relation, object).
@@ -30,7 +31,8 @@ def str_to_triplet(s: str) -> Tuple[str, str, str]:
 
     parts = [p.strip() for p in s.split('||')]
     if len(parts) != 3:
-        raise ValueError(f"Expected 3 parts separated by '||', got {len(parts)}: {s!r}")
+        raise ValueError(
+            f"Expected 3 parts separated by '||', got {len(parts)}: {s!r}")
 
     ent1 = _extract_entity(parts[0])
     relation = parts[1]
@@ -41,3 +43,17 @@ def str_to_triplet(s: str) -> Tuple[str, str, str]:
 
     ent2 = _extract_entity(parts[2])
     return ent1, relation, ent2
+
+
+def tuple_to_str(triplet: Tuple[str, str, str]) -> str:
+    """
+    Convert a triplet (subject, relation, object) back into the ERE string format.
+
+    Entities are wrapped in <e>...</e> tags.
+    Relation is placed between '||' delimiters.
+
+    Example:
+      ("Ent1", "relation", "Ent2") -> "<e>Ent1</e> || relation || <e>Ent2</e>"
+    """
+    subj, rel, obj = triplet
+    return f"<e>{subj}</e> || {rel} || <e>{obj}</e>"
