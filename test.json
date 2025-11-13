@@ -1,0 +1,100 @@
+{
+   "nodes": [
+      {
+         "id": 0,
+         "labels": [
+            "Entity"
+         ],
+         "properties": {
+            "name": "Tugnui coal mine",
+            "id": "Tugnui_coal_mine"
+         }
+      },
+      {
+         "id": 1219632,
+         "labels": [],
+         "properties": {}
+      },
+      {
+         "id": 1333653,
+         "labels": [
+            "Entity"
+         ],
+         "properties": {
+            "name": "Russia",
+            "id": "Russia"
+         }
+      },
+      {
+         "id": 1,
+         "labels": [
+            "Entity"
+         ],
+         "properties": {
+            "name": "Magnus Pegel",
+            "id": "Magnus_Pegel"
+         }
+      },
+      {
+         "id": 185985,
+         "labels": [],
+         "properties": {}
+      },
+      {
+         "id": 1235076,
+         "labels": [
+            "Entity"
+         ],
+         "properties": {
+            "name": ""1619"",
+            "id": ""1619""
+         }
+      },
+      {
+         "id": 185190,
+         "labels": [],
+         "properties": {}
+      },
+      {
+         "id": 2,
+         "labels": [
+            "Entity"
+         ],
+         "properties": {
+            "name": "The Wiz (soundtrack)",
+            "id": "The_Wiz_(soundtrack)"
+         }
+      },
+      {
+         "id": 1484192,
+         "labels": [],
+         "properties": {}
+      },
+      {
+         "id": 687859,
+         "labels": [
+            "Entity"
+         ],
+         "properties": {
+            "name": "Pop music",
+            "id": "Pop_music"
+         }
+      },
+      {
+         "id": 1289903,
+         "labels": [],
+         "properties": {}
+      },
+      {
+         "id": 1204585,
+         "labels": [
+            "Entity"
+         ],
+         "properties": {
+            "name": "Rhythm and blues",
+            "id": "Rhythm_and_blues"
+         }
+      }
+   ],
+   "relationships": []
+}
