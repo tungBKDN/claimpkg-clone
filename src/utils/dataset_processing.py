@@ -37,10 +37,11 @@ def generate_triplets(data, remove_underscore=False):
                     if not tails:
                         tail = f'unknown_{unknown_count}'
                         unknown_count += 1
-                        triplets.append((tail, relation, entity_std))
+                        # triplets.append((, relation, ))
+                        triplets.append((entity_std, relation, tail))
                     else:
                         for tail in tails:
-                            triplets.append((tail, relation, entity_std))
+                            triplets.append((entity_std, relation, tail))
                 else:
                     tails = [std_entity(e) for e in entity_set if e != entity_std]
                     if not tails:
@@ -53,6 +54,85 @@ def generate_triplets(data, remove_underscore=False):
 
     data['triplet'] = triplets
     return data
+
+def generate_claimpkg_triplets(sample,
+                               remove_underscore=False,
+                               unknown_prefix="unknown_"):
+    entity_set = sample["Entity_set"]
+    evidence = sample["Evidence"]
+
+    def norm(e):
+        if remove_underscore and isinstance(e, str):
+            return e.replace("_", " ")
+        return e
+
+    # standardize names
+    entity_set_std = [norm(e) for e in entity_set]
+
+    # unknown node mapping
+    unk_map = {}
+    unk_counter = 0
+
+    def new_unknown():
+        nonlocal unk_counter
+        u = f"{unknown_prefix}{unk_counter}"
+        unk_counter += 1
+        return u
+
+    def resolve_entity(e):
+        if e in entity_set:
+            return norm(e)
+        # any implicit node labeled in evidence but not in entity_set becomes unknown
+        if e not in unk_map:
+            unk_map[e] = new_unknown()
+        return unk_map[e]
+
+    triplets = []
+
+    # CASE 1: Only one entity in the claim
+    if len(entity_set) == 1:
+        head = entity_set_std[0]
+        tail = new_unknown()  # always unknown_0
+        for rel_lists in evidence.values():
+            for rel_group in rel_lists:
+                for r in rel_group:
+                    if r.startswith("~"):
+                        triplets.append((tail, r[1:], head))
+                    else:
+                        triplets.append((head, r, tail))
+        sample['triplet'] = triplets
+        return sample
+
+    # CASE 2+: Two or more entities
+    # Build unknown map for implicit nodes
+    explicit = set(entity_set)
+    implicit = set(evidence.keys()) - explicit
+    for imp in implicit:
+        resolve_entity(imp)
+
+    # All nodes available
+    all_nodes = [norm(e) for e in entity_set] + list(unk_map.values())
+
+    # generate triplets
+    for ent, rel_lists in evidence.items():
+        head = resolve_entity(ent)
+        # tails = every other node
+        tails = [t for t in all_nodes if t != head]
+
+        for rel_group in rel_lists:
+            for r in rel_group:
+                if r.startswith("~"):  # inverse
+                    rel = r[1:]
+                    for t in tails:
+                        triplets.append((t, rel, head))
+                else:                 # forward
+                    for t in tails:
+                        triplets.append((head, r, t))
+
+    # dedupe
+    triplets = list(dict.fromkeys(triplets))
+    sample['triplet'] = triplets
+    return sample
 
 
 def process_data(data: dict, remove_underscore: bool = True) -> Tuple[Dict, List]:
@@ -71,7 +151,7 @@ def process_data(data: dict, remove_underscore: bool = True) -> Tuple[Dict, List
     distinct_entities = set()
     keys = list(data.keys())
     for key in tqdm(keys, desc="Processing data"):
-        updated = generate_triplets(data[key], remove_underscore)
+        updated = generate_claimpkg_triplets(data[key], remove_underscore)
         updated_data[key] = updated
 
         # Collect distinct entities from all triplets
