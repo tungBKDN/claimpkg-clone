@@ -1,7 +1,8 @@
 import torch.nn.functional as F
 import torch
-from typing import Tuple, List, Dict, Callable
+from typing import Tuple, List, Dict, Callable, Optional
 from heapq import nlargest
+import numpy as np
 
 class Similarity:
     def __init__(self, encoder_model: str = "BAAI/bge-large-en-v1.5"):
@@ -187,3 +188,32 @@ class Similarity:
         topk = nlargest(k1, aggregated_scores.items(), key=lambda x: x[1])
 
         return topk
+
+    def embed(self, texts: List[str], save_to: Optional[str] = None):
+        """
+        Generate normalized embeddings for a list of texts using the encoder model.
+        Parameters:
+            texts (List[str]): A list of text strings to encode.
+            save_to (Optional[str]): If provided, save the embeddings to this file path, do not include file extension.
+        Returns:
+            torch.Tensor: A tensor of normalized embeddings.
+        """
+        emb = self.encoder.encode(texts, normalize_embeddings=True)
+
+        if save_to:
+            emb_filename = save_to + ".npy"
+            np.save(emb_filename, emb)
+
+            # This file contains the original texts corresponding to the saved embeddings
+            txt_filename = save_to + ".txt"
+            with open(txt_filename, "w", encoding="utf-8") as f:
+                for t in texts:
+                    f.write(t.replace("\n", " ") + "\n")
+
+        return emb
+
+    def match_embed(self, raw: str, reference, reference_embeddings, top_k: int):
+        emb = self.encoder.encode([raw], normalize_embeddings=True)[0]
+        scores = reference_embeddings @ emb
+        top_k_indices = torch.topk(torch.tensor(scores), top_k).indices.tolist()
+        return [(reference[i], scores[i].item()) for i in top_k_indices]
