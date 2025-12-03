@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 from neo4j import GraphDatabase  # removed RoutingControl
 from marisa_trie import Trie  # optional
 
+
 class KGConnector:
     """
     Neo4j connector helper with entity relationship retrieval.
@@ -25,7 +26,8 @@ class KGConnector:
         self.password = password or os.getenv("KG_PASSWORD")
         self.database = database or os.getenv("KG_NAME", "neo4j")
         if not self.uri or not self.username or not self.password:
-            raise EnvironmentError("KG_URI, KG_USERNAME and KG_PASSWORD must be set")
+            raise EnvironmentError(
+                "KG_URI, KG_USERNAME and KG_PASSWORD must be set")
 
         self._driver = None  # create lazily
         self._driver_kwargs = driver_kwargs
@@ -33,10 +35,12 @@ class KGConnector:
 
     def _ensure_driver(self):
         if self._closed:
-            raise RuntimeError("KGConnector driver has been closed; create a new KGConnector instance.")
+            raise RuntimeError(
+                "KGConnector driver has been closed; create a new KGConnector instance.")
         if self._driver is None:
             # create driver on first use
-            self._driver = GraphDatabase.driver(self.uri, auth=(self.username, self.password), **self._driver_kwargs)
+            self._driver = GraphDatabase.driver(self.uri, auth=(
+                self.username, self.password), **self._driver_kwargs)
 
     def close(self) -> None:
         if self._driver is not None:
@@ -71,6 +75,7 @@ class KGConnector:
 
     def run_query(self, cypher: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         params = params or {}
+
         def _q(tx):
             res = tx.run(cypher, **params)
             return [record.data() for record in res]
@@ -85,7 +90,8 @@ class KGConnector:
         rels: Dict[Any, Dict[str, Any]] = {}
 
         def _node_to_dict(n) -> Dict[str, Any]:
-            nid = getattr(n, "element_id", None) if hasattr(n, "element_id") else None
+            nid = getattr(n, "element_id", None) if hasattr(
+                n, "element_id") else None
             # If n doesn't expose element_id via driver object, use n.id replacement by caution:
             # but since we use elementId(...) in queries, the record will contain ids as strings already.
             try:
@@ -151,11 +157,10 @@ class KGConnector:
         -> ```{'current_node': {'identity': None, 'labels': ['Entity'], 'properties': {'name': 'Huế', 'id': 'Huế'}}, 'direct_node': [{'identity': 1307054, 'labels': ['Entity'], 'properties': {'name': 'Empire of Vietnam', 'id': 'Empire_of_Vietnam'}}, {'identity': 606675, 'labels': ['Entity'], 'properties': {'name': '"1993"', 'id': '"1993"'}}], 'relations': [{'relation_name': 'capital', 'start': '4:6de6b895-bb86-4aa5-9f9e-f625cd63cdad:1307054', 'end': '4:6de6b895-bb86-4aa5-9f9e-f625cd63cdad:966057'}, {'relation_name': 'year', 'start': '4:6de6b895-bb86-4aa5-9f9e-f625cd63cdad:966057', 'end': '4:6de6b895-bb86-4aa5-9f9e-f625cd63cdad:606675'}]}```
         """
 
-
         cypher = """
-        MATCH (n:Entity)
+        MATCH (n)
         WHERE elementId(n) = $input OR n.name = $input
-        MATCH (n)-[r]-(m:Entity)
+        MATCH (n)-[r]-(m)
         RETURN n AS current_node,
                collect(DISTINCT m) AS direct_node,
                collect({relation_name: type(r), start: elementId(startNode(r)), end: elementId(endNode(r))}) AS relations
@@ -208,7 +213,8 @@ class KGConnector:
 
     def generate_trie(self, save_to: Optional[str] = None) -> Trie:
         def _q(tx):
-            result = tx.run("MATCH (n) WHERE n.name IS NOT NULL RETURN DISTINCT n.name AS name")
+            result = tx.run(
+                "MATCH (n) WHERE n.name IS NOT NULL RETURN DISTINCT n.name AS name")
             return [record["name"] for record in result if record["name"]]
 
         self._ensure_driver()
@@ -236,9 +242,9 @@ class KGConnector:
                 False otherwise.
         """
         cypher = """
-        MATCH (a:Entity)
+        MATCH (a)
         WHERE elementId(a) = $entity_1 OR a.name = $entity_1
-        MATCH (b:Entity)
+        MATCH (b)
         WHERE elementId(b) = $entity_2 OR b.name = $entity_2
         RETURN EXISTS( (a)--(b) ) AS connected
         """
@@ -260,6 +266,21 @@ class KGConnector:
             rows = session.run(cypher)
             return [r["relationshipType"] for r in rows]
 
+    def load_kg_entities(self):
+        """
+        Load all entity names from the KG.
+        Returns a list of unique entity names.
+        """
+        self._ensure_driver()
+        cypher = "MATCH (n) WHERE n.name IS NOT NULL RETURN DISTINCT n.name AS entity_name"
+
+        def _q(tx):
+            res = tx.run(cypher)
+            return [record["entity_name"] for record in res if record["entity_name"]]
+
+        with self._driver.session(database=self.database) as session:
+            return self._use_execute_read(session, _q)
+
     def build_local_adj(self, entities: list[dict], relations: list[str]):
         # Step 3: query only what is needed
         kg_adj = {e: {} for e in entities}
@@ -269,7 +290,7 @@ class KGConnector:
             for ent in entities:
                 for rel in relations:
                     cypher = f"""
-                    MATCH (a:Entity {{name: $ent}})-[:`{rel}`]->(b)
+                    MATCH (a {{name: $ent}})-[:`{rel}`]->(b)
                     RETURN b.name AS dst
                     """
                     rows = session.run(cypher, ent=ent)
@@ -280,3 +301,37 @@ class KGConnector:
 
         return kg_adj
 
+    def get_neighbors(self, entity_names: list[str]):
+        """
+        Given a list of entity names, return their direct neighbors and relationships.
+
+        Parameters:
+        - entity_names: List[str] - list of entity names to query.
+
+        Returns:
+        - Dict[str, Dict[str, List[str]]]: mapping from entity name to its relationships and connected entities.
+        """
+        kg_neighbors: Dict[str, Dict[str, List[str]]] = {}
+
+        self._ensure_driver()
+        with self._driver.session(database=self.database) as session:
+            cypher = """
+            MATCH (a)-[r]-(b)
+            WHERE a.name IN $entity_names
+            RETURN a.name AS source,
+            COLLECT({relation: type(r), neighbor: b.name}) AS neighbors
+            """
+            rows = session.run(cypher, entity_names=entity_names)
+            for row in rows:
+                source = row["source"]
+                neighbors_info = row["neighbors"]
+                if source not in kg_neighbors:
+                    kg_neighbors[source] = {}
+                for neighbor_entry in neighbors_info:
+                    relation = neighbor_entry["relation"]
+                    neighbor = neighbor_entry["neighbor"]
+                    if relation not in kg_neighbors[source]:
+                        kg_neighbors[source][relation] = []
+                    kg_neighbors[source][relation].append(neighbor)
+
+        return kg_neighbors

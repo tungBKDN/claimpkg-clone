@@ -1,3 +1,4 @@
+from scipy.__config__ import show
 import torch.nn.functional as F
 import torch
 from typing import Tuple, List, Dict, Callable, Optional
@@ -5,7 +6,7 @@ from heapq import nlargest
 import numpy as np
 
 class Similarity:
-    def __init__(self, encoder_model: str = "BAAI/bge-large-en-v1.5"):
+    def __init__(self, encoder_model: str = "BAAI/bge-small-en-v1.5"):
         """
         Initialize the Similarity class with a specified encoder model.
         Parameters:
@@ -198,7 +199,7 @@ class Similarity:
         Returns:
             torch.Tensor: A tensor of normalized embeddings.
         """
-        emb = self.encoder.encode(texts, normalize_embeddings=True)
+        emb = self.encoder.encode(texts, normalize_embeddings=True, show_progress_bar=True)
 
         if save_to:
             emb_filename = save_to + ".npy"

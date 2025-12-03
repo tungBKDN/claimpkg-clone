@@ -57,3 +57,33 @@ def tuple_to_str(triplet: Tuple[str, str, str]) -> str:
     """
     subj, rel, obj = triplet
     return f"<e>{subj}</e> || {rel} || <e>{obj}</e>"
+
+
+def union_triplets(filled_with_rel: list[dict], filled_without_rel: list[dict]) -> list:
+    """
+    Union triplets from two lists of groups:
+    - filled_with_rel: candidate which has relation
+    - filled_without_rel: candidate which does not have relation
+
+    Returns a list of objects:
+    [{"triplet_as_string": str, "explicit_nodes": [str]}]
+    """
+    result = []
+
+    def process_group(group):
+        triplets = group.get("triplets", [])
+        explicit_nodes = group.get("explicit_nodes", [])
+        for t in triplets:
+            result.append({
+                "triplet_as_string": t,
+                "explicit_nodes": explicit_nodes
+            })
+
+    # Process all groups
+    for group in filled_with_rel:
+        process_group(group)
+
+    for group in filled_without_rel:
+        process_group(group)
+
+    return result

@@ -4,7 +4,7 @@ import sys
 sys.path.append('..')
 from utils.parser import str_to_triplet
 from kg_connector.kg_connector import KGConnector
-from embeddings.relation_embedder import RelationEmbedder
+from embeddings.embedder import Embedder
 from typing import Optional
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -12,8 +12,8 @@ from math import ceil
 
 class GroupNDecompose:
 
-    def __init__(self, relation_embedder: Optional[RelationEmbedder] = None, kg_connector: Optional[KGConnector] = None):
-        self.relation_embedder : RelationEmbedder = RelationEmbedder() if relation_embedder is None else relation_embedder
+    def __init__(self, embedder: Optional[Embedder] = None, kg_connector: Optional[KGConnector] = None):
+        self.embedder : Embedder = Embedder() if embedder is None else embedder
         self.kg_connector     : KGConnector      = KGConnector() if kg_connector is None else kg_connector
 
 
@@ -42,9 +42,11 @@ class GroupNDecompose:
 
         # Normalize relations
         parsed = self.normalize_relation(parsed)
+        parsed = self.normalize_entity(parsed)
 
         # Build KG adjacency
         kg_ref: dict[str, dict[str, list]] = self.build_kg_adjacency(parsed)
+        print("KG adjacency built.", kg_ref)
 
         completed = []
         incompleted = []
@@ -125,8 +127,33 @@ class GroupNDecompose:
         """
         for triplet in triplet_dicts:
             raw_relation = triplet["relation"]
-            matched_relation, score = self.relation_embedder.match_relation(raw_relation, top_k=1)[0]
+            matched_relation, score = self.embedder.match_relation(raw_relation, top_k=1)[0]
             triplet["relation"] = matched_relation
+        return triplet_dicts
+
+    def normalize_entity(self, triplet_dicts: list[dict[str, str]]):
+        for triplet in triplet_dicts:
+            raw_head = triplet["head"]
+            raw_tail = triplet["tail"]
+
+            if not raw_head.startswith("unknown_"):
+                matched_head = self.embedder.match_entity(raw_head, top_k=1)
+            else:
+                matched_head = raw_head
+            if not raw_tail.startswith("unknown_"):
+                matched_tail = self.embedder.match_entity(raw_tail, top_k=1)
+            else:
+                matched_tail = raw_tail
+
+            if isinstance(matched_head, str):
+                triplet["head"] = matched_head
+            else:
+                triplet["head"] = matched_head[0][0]  # best match
+
+            if isinstance(matched_tail, str):
+                triplet["tail"] = matched_tail
+            else:
+                triplet["tail"] = matched_tail[0][0]  # best match
         return triplet_dicts
 
     def build_kg_adjacency(self, triplet_dicts: list[dict[str, str]]) -> dict[str, dict[str, list]]:
