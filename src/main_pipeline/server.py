@@ -133,10 +133,10 @@ class ClaimRequest(BaseModel):
 
 class ClaimResponse(BaseModel):
     claim: str
-    retrieved_triplets: str
-    final_answer: str
-    specialize_mode: str
-    processing_time_seconds: Optional[float] = None
+    verdict: Optional[str] = None
+    explaination: Optional[str] = None
+    final_graph: Optional[list] = None
+    time_taken_seconds: Optional[float] = None
 
 
 class HealthResponse(BaseModel):
@@ -234,7 +234,7 @@ async def verify_claim(request: ClaimRequest):
         start_time = time.time()
 
         # Run the pipeline
-        final_retrieved_triplets, final_answer = registry.pipeline.run(
+        final_answer = registry.pipeline.run(
             claim=request.claim,
             specialize_mode=request.specialize_mode,
             retry=request.retry
@@ -244,10 +244,10 @@ async def verify_claim(request: ClaimRequest):
 
         return ClaimResponse(
             claim=request.claim,
-            retrieved_triplets=final_retrieved_triplets,
-            final_answer=final_answer,
-            specialize_mode=request.specialize_mode,
-            processing_time_seconds=round(processing_time, 2)
+            verdict=final_answer.get("verdict", None),
+            explaination=final_answer.get("explaination", None),
+            final_graph=final_answer.get("final_graph", None),
+            time_taken_seconds=round(processing_time, 2)
         )
 
     except Exception as e:
