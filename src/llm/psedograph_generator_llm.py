@@ -95,8 +95,8 @@ class PseudographGeneratorLLM:
         self.model = model_name
 
         self.base_cfg = types.GenerateContentConfig(
-            temperature=0.0,
-            max_output_tokens=512,
+            temperature=0.1,
+            max_output_tokens=2048,
             thinking_config=types.ThinkingConfig(thinking_budget=2048),
             system_instruction=[
                 types.Part.from_text(text=FEWSHOT)
