@@ -289,10 +289,19 @@ class KGConnector:
         with self._driver.session(database=self.database) as session:
             for ent in entities:
                 for rel in relations:
+
                     cypher = f"""
-                    MATCH (a {{name: $ent}})-[:`{rel}`]->(b)
-                    RETURN b.name AS dst
+                    // OUTBOUND
+                    MATCH (a {{name: $ent}})-[r:`{rel}`]->(b)
+                    RETURN type(r) AS rel, b.name AS dst
+
+                    UNION
+
+                    // INBOUND
+                    MATCH (b)-[r:`{rel}`]->(a {{name: $ent}})
+                    RETURN type(r) AS rel, b.name AS dst
                     """
+
                     rows = session.run(cypher, ent=ent)
                     results = [r["dst"] for r in rows]
 

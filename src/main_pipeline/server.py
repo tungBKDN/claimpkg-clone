@@ -10,13 +10,14 @@ sys.path.append('..')
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, final
 import uvicorn
 from datetime import datetime
 
 from kg_connector.kg_connector import KGConnector
 from llm.general_llm import GeneralLLM
 from llm.specialized_llm import SpecializedLLM
+from llm.basic_sense_llm import BasicSenseLLM
 from llm.psedograph_generator_llm import PseudographGeneratorLLM
 from middle.group_n_decompose import GroupNDecompose
 from middle.retrieve_and_union import RetrieveAndUnion
@@ -54,6 +55,7 @@ class SingletonRegistry:
         self.pipeline = None
         self._initialized = True
         self.init_timestamp = None
+        self.basic_sense_llm = None
 
     def initialize(self):
         """Lazy initialization of all singleton resources."""
@@ -72,8 +74,9 @@ class SingletonRegistry:
 
         print("Loading LLMs...")
         self.general_llm = GeneralLLM()
-        self.specialized_llm = SpecializedLLM()
+        # self.specialized_llm = SpecializedLLM()
         self.pseudograph_generator = PseudographGeneratorLLM()
+        self.basic_sense_llm = BasicSenseLLM()
 
         print("Loading GroupNDecompose...")
         self.group_n_decompose = GroupNDecompose(
@@ -86,15 +89,16 @@ class SingletonRegistry:
 
         print("Initializing Pipeline...")
         # Create pipeline with pre-initialized singletons
-        self.pipeline = Pipeline()
+        self.pipeline = Pipeline(use_singleton_registry=True)
         self.pipeline.kg_connector = self.kg_connector
         self.pipeline.general_llm = self.general_llm
-        self.pipeline.specialized_llm = self.specialized_llm
+        # self.pipeline.specialized_llm = self.specialized_llm # This option is currently disabled
         self.pipeline.sim = self.sim
         self.pipeline.embedder = self.embedder
         self.pipeline.group_n_decompose = self.group_n_decompose
         self.pipeline.retrieve_and_union = self.retrieve_and_union
-        self.pipeline.pseudograph_generator = self.pseudograph_generator
+        self.pipeline.basic_sense_llm = self.basic_sense_llm
+        self.pipeline.pseudograph_generator = self.pseudograph_generator # This option is currently disabled
 
         self.init_timestamp = datetime.now().isoformat()
         print("✓ All resources initialized successfully!")
@@ -134,8 +138,8 @@ class ClaimRequest(BaseModel):
 class ClaimResponse(BaseModel):
     claim: str
     verdict: Optional[str] = None
-    explaination: Optional[str] = None
-    final_graph: Optional[list] = None
+    explanation: Optional[str] = None
+    final_graph: Optional[str] = None
     time_taken_seconds: Optional[float] = None
 
 
@@ -242,10 +246,11 @@ async def verify_claim(request: ClaimRequest):
 
         processing_time = time.time() - start_time
 
+        print(final_answer)
         return ClaimResponse(
             claim=request.claim,
             verdict=final_answer.get("verdict", None),
-            explaination=final_answer.get("explaination", None),
+            explanation=final_answer.get("explanation", None),
             final_graph=final_answer.get("final_graph", None),
             time_taken_seconds=round(processing_time, 2)
         )

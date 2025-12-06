@@ -92,7 +92,7 @@ class RetrieveAndUnion:
                 pseudo_relations=pseudo_relations,
                 KG=KG,
                 sim_func=self.sim.sim,
-                k1=3,
+                k1=4,
                 normalize=True,
                 aggregate="max"
             )
@@ -234,10 +234,14 @@ class RetrieveAndUnion:
             pseudo_graph=group_n_decomposed,
         )
 
+        print("\nWith relation", filled_unk_with_relations)
+
         filled_unk_without_relations = self.resolve_unknown_without_relation(
             neighbors=neighbors,
             pseudo_graph=group_n_decomposed,
         )
+
+        print("\nWithout relation", filled_unk_without_relations)
 
         unified_results = union_triplets(filled_with_rel=filled_unk_with_relations, filled_without_rel=filled_unk_without_relations)
 

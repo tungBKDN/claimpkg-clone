@@ -44,6 +44,8 @@ class GroupNDecompose:
         parsed = self.normalize_relation(parsed)
         parsed = self.normalize_entity(parsed)
 
+        print("Normalized Triplets:\n", parsed)
+
         # Build KG adjacency
         kg_ref: dict[str, dict[str, list]] = self.build_kg_adjacency(parsed)
         print("KG adjacency built.", kg_ref)
@@ -127,33 +129,35 @@ class GroupNDecompose:
         """
         for triplet in triplet_dicts:
             raw_relation = triplet["relation"]
+            # If relation is already normalized, skip
+            if raw_relation in self.embedder.kg_relations:
+                continue
             matched_relation, score = self.embedder.match_relation(raw_relation, top_k=1)[0]
             triplet["relation"] = matched_relation
         return triplet_dicts
 
     def normalize_entity(self, triplet_dicts: list[dict[str, str]]):
+        entities = set()
         for triplet in triplet_dicts:
-            raw_head = triplet["head"]
-            raw_tail = triplet["tail"]
+            if not triplet["head"].startswith("unknown_"):
+                entities.add(triplet["head"])
+            if not triplet["tail"].startswith("unknown_"):
+                entities.add(triplet["tail"])
 
-            if not raw_head.startswith("unknown_"):
-                matched_head = self.embedder.match_entity(raw_head, top_k=1)
+        entity_map = {}
+        for entity in entities:
+            if entity in self.embedder.kg_entities:
+                entity_map[entity] = entity
             else:
-                matched_head = raw_head
-            if not raw_tail.startswith("unknown_"):
-                matched_tail = self.embedder.match_entity(raw_tail, top_k=1)
-            else:
-                matched_tail = raw_tail
+                matched_entity = self.embedder.match_entity(entity, top_k=1)[0][0]
+                entity_map[entity] = matched_entity
 
-            if isinstance(matched_head, str):
-                triplet["head"] = matched_head
-            else:
-                triplet["head"] = matched_head[0][0]  # best match
-
-            if isinstance(matched_tail, str):
-                triplet["tail"] = matched_tail
-            else:
-                triplet["tail"] = matched_tail[0][0]  # best match
+        # Map back to triplet_dicts
+        for triplet in triplet_dicts:
+            if not self.is_unknown(triplet["head"]):
+                triplet["head"] = entity_map[triplet["head"]]
+            if not self.is_unknown(triplet["tail"]):
+                triplet["tail"] = entity_map[triplet["tail"]]
         return triplet_dicts
 
     def build_kg_adjacency(self, triplet_dicts: list[dict[str, str]]) -> dict[str, dict[str, list]]:

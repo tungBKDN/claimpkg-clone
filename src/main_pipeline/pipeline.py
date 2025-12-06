@@ -14,16 +14,20 @@ from embeddings.embedder import Embedder
 from utils.sim import Similarity
 import re
 class Pipeline:
-    def __init__(self):
-        self.kg_connector = KGConnector()
-        self.general_llm = GeneralLLM()
-        self.specialized_llm = SpecializedLLM()
-        self.sim = Similarity()
-        self.embedder = Embedder(kg_connector=self.kg_connector, sim=self.sim)
-        self.group_n_decompose = GroupNDecompose(embedder=self.embedder, kg_connector=self.kg_connector)
-        self.retrieve_and_union = RetrieveAndUnion(kg_connector=self.kg_connector)
-        self.pseudograph_generator = PseudographGeneratorLLM()
-        self.basic_sense_llm = BasicSenseLLM()
+    def __init__(self, use_singleton_registry: bool = False):
+        if not use_singleton_registry:
+            self.kg_connector = KGConnector()
+            self.general_llm = GeneralLLM()
+            # self.specialized_llm = SpecializedLLM() # This option is currently disabled
+            self.specialized_llm = None
+            self.sim = Similarity()
+            self.embedder = Embedder(kg_connector=self.kg_connector, sim=self.sim)
+            self.group_n_decompose = GroupNDecompose(embedder=self.embedder, kg_connector=self.kg_connector)
+            self.retrieve_and_union = RetrieveAndUnion(kg_connector=self.kg_connector)
+            self.pseudograph_generator = PseudographGeneratorLLM()
+            self.basic_sense_llm = BasicSenseLLM()
+        else:
+            print("Using Singleton Registry for Pipeline initialization, please update the instance's attributes manually.")
 
     def run(self, claim: str, specialize_mode: str = "FEWSHOT", retry: int = 3) -> dict:
         # 0. Using basic sense LLM to check if the claim is valid
@@ -42,7 +46,8 @@ class Pipeline:
         if specialize_mode == "FEWSHOT":
             pseudo_graph_string = self.pseudograph_generator.generate(claim=claim, retry=retry)
         elif specialize_mode == "FINETUNE":
-            pseudo_graph_string = self.specialized_llm.generate(input_text=claim)
+            raise NotImplementedError("FINETUNE mode is currently disabled.")
+            # pseudo_graph_string = self.specialized_llm.generate(input_text=claim)
         # 1.1. Filtering only triplets that exist in the pseudo_graph_string in case the LLM added extra text: get all substring that match the triplet pattern <e>TEXT</e> || TEXT || <e>TEXT</e>
         # Use re
         triplet_pattern = r"<e>.*?</e> \|\| .*? \|\| <e>.*?</e>"

@@ -210,3 +210,5 @@ __marimo__/
 
 *.pickle
 /src/relabelling/keys.json
+
+src/resources/embeddings/*
