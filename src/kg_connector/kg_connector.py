@@ -327,6 +327,8 @@ class KGConnector:
             cypher = """
             MATCH (a)-[r]-(b)
             WHERE a.name IN $entity_names
+            WITH a.name AS source,
+                collect({relation: type(r), neighbor: b.name})[0..18] AS neighbors
             RETURN a.name AS source,
             COLLECT({relation: type(r), neighbor: b.name}) AS neighbors
             """
@@ -344,3 +346,72 @@ class KGConnector:
                     kg_neighbors[source][relation].append(neighbor)
 
         return kg_neighbors
+
+    def get_children_up_to_k(self, entities: list[str], k: int) -> set[str]:
+        """
+        Given a list of entity names, return a set of their children names
+        up to k levels deep in the KG.
+
+        Parameters:
+        - entities: List[str] - list of entity names to start from.
+        - k: int - number of levels of children to traverse.
+
+        Returns:
+        - Set[str]: set of entity names up to k levels deep.
+        """
+        all_children = set()
+        current_level = set(entities)
+
+        self._ensure_driver()
+        with self._driver.session(database=self.database) as session:
+            for _ in range(k):
+                if not current_level:
+                    break
+
+                cypher = """
+                MATCH (n)-[]->(child)
+                WHERE n.name IN $entity_names
+                RETURN DISTINCT child.name AS name
+                """
+                rows = session.run(cypher, entity_names=list(current_level))
+
+                next_level = set()
+                for row in rows:
+                    child_name = row["name"]
+                    if child_name not in all_children:
+                        next_level.add(child_name)
+                        all_children.add(child_name)
+
+                current_level = next_level
+
+        return all_children
+
+    def get_relations_between(self, entities: list[str]) -> str:
+        """
+        Given a list of entity names, return a string of their relations
+        with each other in the KG, formatted as:
+        "<e>HEAD</e> || relation || <e>TAIL</e>\n..."
+
+        Parameters:
+        - entities: List[str] - list of entity names to check.
+
+        Returns:
+        - str: formatted string of relations
+        """
+        relations = []
+
+        self._ensure_driver()
+        with self._driver.session(database=self.database) as session:
+            cypher = """
+            MATCH (head)-[r]->(tail)
+            WHERE head.name IN $entity_names AND tail.name IN $entity_names
+            RETURN head.name AS head, type(r) AS rel, tail.name AS tail
+            """
+            rows = session.run(cypher, entity_names=entities)
+            for row in rows:
+                relations.append(
+                    f"<e>{row['head']}</e> || {row['rel']} || <e>{row['tail']}</e>"
+                )
+
+        return "\n".join(relations)
+

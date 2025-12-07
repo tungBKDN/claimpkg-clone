@@ -24,6 +24,7 @@ RULES:
 - You can use "~" to indicate the reversed relation.
 - Do NOT hallucinate entities. Only use what is explicit or implied.
 - If a relation is mutual, (eg. sibling), output both directions.
+- More over, if the claim related to other things (for example: about comparing temperature of two cties that are in two different temperature zones, you can add relations of lattitude, or dimensional you can use directions and add that one more to the pseudo-graph together with other that existed).
 
 ====================
 FEW-SHOT EXAMPLES
@@ -62,7 +63,6 @@ Triplets:
 <e>unknown_0</e> || residence || <e>London</e>
 
 Claim:
-'Affluence'. It is northwest of Sơn La Province."
 "Tỉnh Hòa Bình nằm ở phía tây nam của thành phố do Ngô Thị Doãn Thanh lãnh đạo, là thủ phủ được thiết lập bởi triều Nguyễn và có biệt danh là 'Affluence'. Nó nằm ở phía tây bắc của tỉnh Sơn La."
 
 Triplets:
@@ -72,6 +72,21 @@ Triplets:
 "<e>Hòa Bình Province</e> || nickname || <e>Affluence</e>",
 "<e>Hòa Bình Province</e> || northwest || <e>Sơn La Province</e>",
 "<e>unknown_0</e> || capital || <e>Nguyễn dynasty</e>",
+
+Claim:
+"Japan has a higher population than South Korea."
+
+Triplets:
+<e>Japan</e> || hasHigherPopulationThan || <e>South Korea</e>
+<e>South Korea</e> || hasLowerPopulationThan || <e>Japan</e>
+<e>Japan</e> || population || <e>unknown_0</e>
+<e>South Korea</e> || population || <e>unknown_1</e>
+
+Claim:
+"The number of Provinces in Vietnam is greater than the number of States in the USA."
+Triplets:
+<e>Vietnam</e> || numberOfProvinces || <e>unknown_0</e>
+<e>USA</e> || numberOfStates || <e>unknown_1</e>
 
 ====================
 END OF FEW-SHOT

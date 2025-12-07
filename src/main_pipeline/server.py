@@ -21,6 +21,7 @@ from llm.basic_sense_llm import BasicSenseLLM
 from llm.psedograph_generator_llm import PseudographGeneratorLLM
 from middle.group_n_decompose import GroupNDecompose
 from middle.retrieve_and_union import RetrieveAndUnion
+from middle.greedy import Greedy
 from embeddings.embedder import Embedder
 from utils.sim import Similarity
 from pipeline import Pipeline
@@ -72,6 +73,11 @@ class SingletonRegistry:
         print("Loading Embedder (this may take a while for large KGs)...")
         self.embedder = Embedder(kg_connector=self.kg_connector, sim=self.sim)
 
+        self.sim.kg_entities = self.embedder.kg_entities
+        self.sim.entity_embeddings = self.embedder.entity_embeddings
+        self.sim.kg_relations = self.embedder.kg_relations
+        self.sim.relation_embeddings = self.embedder.relation_embeddings
+
         print("Loading LLMs...")
         self.general_llm = GeneralLLM()
         # self.specialized_llm = SpecializedLLM()
@@ -99,6 +105,7 @@ class SingletonRegistry:
         self.pipeline.retrieve_and_union = self.retrieve_and_union
         self.pipeline.basic_sense_llm = self.basic_sense_llm
         self.pipeline.pseudograph_generator = self.pseudograph_generator # This option is currently disabled
+        self.pipeline.greedy = Greedy(kg_connector=self.kg_connector)
 
         self.init_timestamp = datetime.now().isoformat()
         print("✓ All resources initialized successfully!")

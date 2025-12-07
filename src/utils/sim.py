@@ -4,19 +4,28 @@ import torch
 from typing import Tuple, List, Dict, Callable, Optional
 from heapq import nlargest
 import numpy as np
+import dotenv
+import os
+dotenv.load_dotenv()
 
 class Similarity:
-    def __init__(self, encoder_model: str = "BAAI/bge-small-en-v1.5"):
+    def __init__(self, encoder_model: str = "BAAI/bge-small-en-v1.5", preload_relation: Optional[np.ndarray] = None, preload_relation_text: Optional[List[str]] = None, preload_entity: Optional[np.ndarray] = None, preload_entity_text: Optional[List[str]] = None, store_path: str = os.getenv('EMBEDDING_STORAGE_PATH', '')):
         """
         Initialize the Similarity class with a specified encoder model.
         Parameters:
             encoder_model (str): The name of the pretrained model to use for encoding.
         """
         from sentence_transformers import SentenceTransformer
-
         self.encoder = SentenceTransformer(encoder_model)
 
-    def sim(self, r1: str, r2: str) -> float:
+        self.kg_relations = []
+        self.relation_embeddings = None
+        self.kg_entities = []
+        self.entity_embeddings = None
+
+
+
+    def sim(self, r1: str, r2: str, use_preload_entity: bool = False, use_preload_relation: bool = False) -> float:
         """
         Compute similarity between two relations using the initialized encoder.
         Parameters:
@@ -28,6 +37,17 @@ class Similarity:
         Example:
         sim.sim("birth place", "place of birth"): return: 0.92
         """
+        if use_preload_entity == True or use_preload_relation == True:
+            if use_preload_entity == True and r2 in self.kg_entities:
+                # Find the embeddings of r2 in the preload_entity
+                emb_r2 = self.entity_embeddings[self.kg_entities.index(r2)]
+            if use_preload_relation == True and r2 in self.kg_relations:
+                # Find the embeddings of r2 in the preload_relation
+                emb_r2 = self.relation_embeddings[self.kg_relations.index(r2)]
+            embeddings = self.encoder.encode([r1], convert_to_tensor=True, normalize_embeddings=True)
+            sim = F.cosine_similarity(
+                embeddings[0].unsqueeze(0), emb_r2.unsqueeze(0))
+            return sim.item()
 
         embeddings = self.encoder.encode([r1, r2], convert_to_tensor=True, normalize_embeddings=True)
         sim = F.cosine_similarity(

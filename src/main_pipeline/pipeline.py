@@ -11,6 +11,7 @@ import utils.parser as par
 from middle.group_n_decompose import GroupNDecompose
 from middle.retrieve_and_union import RetrieveAndUnion
 from embeddings.embedder import Embedder
+from middle.greedy import Greedy
 from utils.sim import Similarity
 import re
 class Pipeline:
@@ -22,10 +23,15 @@ class Pipeline:
             self.specialized_llm = None
             self.sim = Similarity()
             self.embedder = Embedder(kg_connector=self.kg_connector, sim=self.sim)
+            self.sim.kg_entities = self.embedder.kg_entities
+            self.sim.entity_embeddings = self.embedder.entity_embeddings
+            self.sim.kg_relations = self.embedder.kg_relations
+            self.sim.relation_embeddings = self.embedder.relation_embeddings
             self.group_n_decompose = GroupNDecompose(embedder=self.embedder, kg_connector=self.kg_connector)
             self.retrieve_and_union = RetrieveAndUnion(kg_connector=self.kg_connector)
             self.pseudograph_generator = PseudographGeneratorLLM()
             self.basic_sense_llm = BasicSenseLLM()
+            self.greedy = Greedy(kg_connector=self.kg_connector)
         else:
             print("Using Singleton Registry for Pipeline initialization, please update the instance's attributes manually.")
 
@@ -60,7 +66,7 @@ class Pipeline:
             print(triplet)
 
         # 2. Group and decompose Pseudo Graph
-        grouped_decomposed = self.group_n_decompose.group_n_decompose(triplets=pseudo_graph_string)
+        grouped_decomposed, parsed = self.group_n_decompose.group_n_decompose(triplets=pseudo_graph_string)
 
         print("Grouped and Decomposed Triplets:")
         print(grouped_decomposed)
@@ -74,4 +80,11 @@ class Pipeline:
             final_retrieved_triplets += triplet["triplet_as_string"] + "\n"
 
         final_answer = self.general_llm.submit(claim=claim, graph_string=final_retrieved_triplets)
+        # if not final_answer["verdict"] == "NotEnoughInfo":
+        #     return final_answer
+
+        # # This is the final step if the final answer is NotEnoughInfo, use greedy query to query all related entities and relations
+        # greedy_real_graph = self.greedy.greedy(standardized_triplets=parsed, greedy_level=2)
+        # final_answer = self.general_llm.submit(claim=claim, graph_string=greedy_real_graph, max_tokens=8192)
+
         return final_answer
