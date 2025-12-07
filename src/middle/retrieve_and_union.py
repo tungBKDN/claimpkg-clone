@@ -20,9 +20,9 @@ class RetrieveAndUnion:
       for all explicit entities to avoid losing evidence.
     """
 
-    def __init__(self, kg_connector: Optional[KGConnector] = None):
+    def __init__(self, kg_connector: Optional[KGConnector] = None, sim: Optional[Similarity] = None):
         self.kg_connector = kg_connector if kg_connector else KGConnector()
-        self.sim = Similarity()
+        self.sim = sim if sim else Similarity()
 
     # -------------------------
     # Utilities: neighbor retrieval & local KG
@@ -102,7 +102,9 @@ class RetrieveAndUnion:
                     pseudo_relations=pseudo_relations,
                     KG=KG,
                     sim_func=self.sim.sim,
-                    normalize=normalize
+                    normalize=normalize,
+                    use_preload_entity=True,
+                    use_preload_relation=False
                 ))
             except Exception:
                 pass
@@ -114,7 +116,7 @@ class RetrieveAndUnion:
             for r_act, nb in KG.get(e_ui, []):
                 if nb == candidate:
                     try:
-                        total += float(self.sim.sim(r_ui, r_act))
+                        total += float(self.sim.sim(r_ui, r_act, True, False))
                     except Exception:
                         total += 0.0
                     matches += 1
@@ -158,7 +160,7 @@ class RetrieveAndUnion:
             for rel_actual, vals in neighbors.get(head, {}).items():
                 if tail in vals:
                     try:
-                        score = float(self.sim.sim(rel_pseudo, rel_actual))
+                        score = float(self.sim.sim(rel_pseudo, rel_actual, False, True))
                     except Exception:
                         score = 0.0
                     rels_found.append((score, rel_actual))
@@ -261,7 +263,8 @@ class RetrieveAndUnion:
                     explicit_entities=explicit_entities,
                     pseudo_relations=pseudo_relations,
                     KG=KG,
-                    normalize=normalize_scores
+                    normalize=normalize_scores,
+
                 )
 
             if verbose:

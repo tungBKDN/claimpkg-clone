@@ -41,8 +41,9 @@ class GroupNDecompose:
             })
 
         # Normalize relations
-        parsed = self.normalize_relation(parsed)
         parsed = self.normalize_entity(parsed)
+        parsed_entities = parsed.copy()
+        parsed = self.normalize_relation(parsed)
 
         print("Normalized Triplets:\n", parsed)
 
@@ -121,7 +122,7 @@ class GroupNDecompose:
         return {
             "complete_triplets": completed,
             "incomplete_groups": grouped,
-        }, parsed
+        }, parsed_entities
 
     def normalize_relation(self, triplet_dicts: list[dict[str, str]]):
         """

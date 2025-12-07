@@ -91,7 +91,7 @@ class SingletonRegistry:
         )
 
         print("Loading RetrieveAndUnion...")
-        self.retrieve_and_union = RetrieveAndUnion(kg_connector=self.kg_connector)
+        self.retrieve_and_union = RetrieveAndUnion(kg_connector=self.kg_connector, sim=self.sim)
 
         print("Initializing Pipeline...")
         # Create pipeline with pre-initialized singletons

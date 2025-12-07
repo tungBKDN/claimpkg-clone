@@ -80,11 +80,11 @@ class Pipeline:
             final_retrieved_triplets += triplet["triplet_as_string"] + "\n"
 
         final_answer = self.general_llm.submit(claim=claim, graph_string=final_retrieved_triplets)
-        # if not final_answer["verdict"] == "NotEnoughInfo":
-        #     return final_answer
+        if not final_answer["verdict"] == "NotEnoughInfo":
+            return final_answer
 
-        # # This is the final step if the final answer is NotEnoughInfo, use greedy query to query all related entities and relations
-        # greedy_real_graph = self.greedy.greedy(standardized_triplets=parsed, greedy_level=2)
-        # final_answer = self.general_llm.submit(claim=claim, graph_string=greedy_real_graph, max_tokens=8192)
+        # This is the final step if the final answer is NotEnoughInfo, use greedy query to query all related entities and relations
+        greedy_real_graph = self.greedy.greedy(triplets=parsed, k_relations=3)
+        final_answer = self.general_llm.submit(claim=claim, graph_string=greedy_real_graph, max_tokens=8192)
 
         return final_answer

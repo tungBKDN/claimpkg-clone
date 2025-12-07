@@ -89,8 +89,10 @@ class Similarity:
         explicit_entities: List[str],
         pseudo_relations: List[str],
         KG: Dict[str, List[Tuple[str, str]]],
-        sim_func: Callable[[str, str], float],
-        normalize: bool = True
+        sim_func: Callable[[str, str, bool, bool], float],
+        normalize: bool = True,
+        use_preload_entity: bool = False,
+        use_preload_relation: bool = False
     ) -> float:
         """
         Compute the semantic matching score of a candidate entity `candidate_entity`
@@ -111,7 +113,7 @@ class Similarity:
         KG : Dict[str, List[Tuple[str, str]]]
             The knowledge graph, represented as a dictionary:
             { head_entity: [(relation, tail_entity), ...], ... }.
-        sim_func : Callable[[str, str], float]
+        sim_func : Callable[[str, str, bool, bool], float]
             Function computing similarity between two relation strings (e.g., embedding cosine similarity).
         normalize : bool, optional
             Whether to normalize the final score by number of relations, default=True.
@@ -129,7 +131,7 @@ class Similarity:
             kg_edges = KG.get(e_ui, [])
             for r, tail in kg_edges:
                 if tail == candidate_entity:
-                    sim_val = sim_func(r_ui, r)
+                    sim_val = sim_func(r_ui, r, use_preload_entity, use_preload_relation)
                     total_score += sim_val
                     match_count += 1
 
@@ -144,7 +146,7 @@ class Similarity:
         explicit_entities: List[str],
         pseudo_relations: List[str],
         KG: Dict[str, List[Tuple[str, str]]],
-        sim_func: Callable[[str, str], float],
+        sim_func: Callable[[str, str, bool, bool], float],
         k1: int = 3,
         normalize: bool = True,
         aggregate: str = "max"
@@ -164,7 +166,7 @@ class Similarity:
             Relations corresponding to each explicit entity.
         KG : Dict[str, List[Tuple[str, str]]]
             The knowledge graph data structure.
-        sim_func : Callable[[str, str], float]
+        sim_func : Callable[[str, str, bool, bool], float]
             Function measuring similarity between two relations.
         k1 : int, optional
             Number of top candidates to select (default=3).
@@ -238,3 +240,6 @@ class Similarity:
         scores = reference_embeddings @ emb
         top_k_indices = torch.topk(torch.tensor(scores), top_k).indices.tolist()
         return [(reference[i], scores[i].item()) for i in top_k_indices]
+
+    def get_candidate_relations(self, raw_relation: str, top_k: int = 5):
+        return self.match_embed(raw_relation, self.kg_relations, self.relation_embeddings, top_k=top_k)

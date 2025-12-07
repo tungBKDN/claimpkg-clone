@@ -327,8 +327,6 @@ class KGConnector:
             cypher = """
             MATCH (a)-[r]-(b)
             WHERE a.name IN $entity_names
-            WITH a.name AS source,
-                collect({relation: type(r), neighbor: b.name})[0..18] AS neighbors
             RETURN a.name AS source,
             COLLECT({relation: type(r), neighbor: b.name}) AS neighbors
             """
@@ -414,4 +412,69 @@ class KGConnector:
                 )
 
         return "\n".join(relations)
+
+    def get_neighbors_by_relations(self, entity: str, relations: list[str]) -> dict[str, list[str]]:
+        """
+        Retrieve neighbors of a specific entity but filtered only by a given list of relations.
+
+        Params:
+            entity: str              — the entity name to query
+            relations: list[str]     — list of relation names to include
+
+        Returns:
+            Dict[str, List[str]]:
+                { relation: [neighbor1, neighbor2, ...] }
+        """
+
+        result: dict[str, list[str]] = {}
+
+        if not relations:
+            return result
+
+        self._ensure_driver()
+
+        with self._driver.session(database=self.database) as session:
+            cypher = """
+            MATCH (a {name: $entity})-[r]->(b)
+            WHERE type(r) IN $relations
+            RETURN type(r) AS rel, COLLECT(b.name) AS neighbors
+            """
+
+            rows = session.run(cypher, entity=entity, relations=relations)
+
+            for row in rows:
+                rel = row["rel"]
+                nbrs = row["neighbors"]
+                result[rel] = nbrs
+
+        return result
+
+    def get_all_relations_related_to_entity(self, entity: str) -> list[str]:
+        """
+        Retrieve all unique relations connected to a specific entity.
+
+        Params:
+            entity: str              — the entity name to query
+
+        Returns:
+            List[str]: list of unique relation names
+        """
+
+        relations: set[str] = set()
+
+        self._ensure_driver()
+
+        with self._driver.session(database=self.database) as session:
+            cypher = """
+            MATCH (a {name: $entity})-[r]-()
+            RETURN DISTINCT type(r) AS rel
+            """
+
+            rows = session.run(cypher, entity=entity)
+
+            for row in rows:
+                rel = row["rel"]
+                relations.add(rel)
+
+        return list(relations)
 

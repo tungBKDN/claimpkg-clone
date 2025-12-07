@@ -62,16 +62,21 @@ Triplets:
 <e>Karl Marx</e> || influenced || <e>unknown_0</e>
 <e>unknown_0</e> || residence || <e>London</e>
 
+--------------------
+
 Claim:
-"Tỉnh Hòa Bình nằm ở phía tây nam của thành phố do Ngô Thị Doãn Thanh lãnh đạo, là thủ phủ được thiết lập bởi triều Nguyễn và có biệt danh là 'Affluence'. Nó nằm ở phía tây bắc của tỉnh Sơn La."
+"Tác phẩm Aurora được sáng tác ở phía đông nam của phòng thu do Lina Mehta chỉ đạo, có biệt danh là 'Silver Dawn', và được phát hành bởi một hãng được thành lập bởi nghệ sĩ cổ điển Rafael Cruz. Nó cũng ảnh hưởng đến một album nằm phía bắc của Aurora."
 
 Triplets:
-"<e>unknown_0</e> || leaderName || <e>Ngô Thị Doãn Thanh</e>",
-"<e>unknown_0</e> || southwest || <e>Hòa Bình Province</e>",
-"<e>unknown_1</e> || southwest || <e>Hòa Bình Province</e>",
-"<e>Hòa Bình Province</e> || nickname || <e>Affluence</e>",
-"<e>Hòa Bình Province</e> || northwest || <e>Sơn La Province</e>",
-"<e>unknown_0</e> || capital || <e>Nguyễn dynasty</e>",
+"<e>unknown_0</e> || director || <e>Lina Mehta</e>",
+"<e>Aurora</e> || southeastOf || <e>unknown_0</e>",
+"<e>Aurora</e> || nickname || <e>Silver Dawn</e>",
+"<e>unknown_1</e> || foundedBy || <e>Rafael Cruz</e>",
+"<e>Aurora</e> || releasedBy || <e>unknown_1</e>",
+"<e>Aurora</e> || influences || <e>unknown_2</e>",
+"<e>unknown_2</e> || northOf || <e>Aurora</e>"
+
+--------------------
 
 Claim:
 "Japan has a higher population than South Korea."
@@ -82,8 +87,11 @@ Triplets:
 <e>Japan</e> || population || <e>unknown_0</e>
 <e>South Korea</e> || population || <e>unknown_1</e>
 
+--------------------
+
 Claim:
 "The number of Provinces in Vietnam is greater than the number of States in the USA."
+
 Triplets:
 <e>Vietnam</e> || numberOfProvinces || <e>unknown_0</e>
 <e>USA</e> || numberOfStates || <e>unknown_1</e>
