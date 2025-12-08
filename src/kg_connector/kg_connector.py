@@ -478,3 +478,59 @@ class KGConnector:
 
         return list(relations)
 
+    def get_neighbors_multi(self, entity_names: list[str]) -> dict[str, dict[str, list[str]]]:
+        """
+        Retrieve all neighbors (both directions) for multiple entities.
+
+        Params:
+            entity_names: List[str] - list of entity names to query.
+
+        Returns:
+            Dict[str, Dict[str, List[str]]]:
+                {
+                    "EntityA": {
+                        "REL_X": ["Neighbor1", "Neighbor2"],
+                        "REL_Y": [...],
+                        ...
+                    },
+                    "EntityB": { ... }
+                }
+        """
+
+        result: dict[str, dict[str, list[str]]] = {e: {} for e in entity_names}
+
+        self._ensure_driver()
+
+        with self._driver.session(database=self.database) as session:
+            cypher = """
+            // OUTGOING edges
+            MATCH (a)-[r]->(b)
+            WHERE a.name IN $entities
+            RETURN a.name AS source,
+                type(r) AS rel,
+                collect(distinct b.name) AS nbrs
+            UNION ALL
+            // INCOMING edges
+            MATCH (b)-[r]->(a)
+            WHERE a.name IN $entities
+            RETURN a.name AS source,
+                type(r) AS rel,
+                collect(distinct b.name) AS nbrs
+            """
+
+            rows = session.run(cypher, entities=entity_names)
+
+            for row in rows:
+                source = row["source"]
+                rel    = row["rel"]
+                nbrs   = row["nbrs"]
+
+                if rel not in result[source]:
+                    result[source][rel] = []
+
+                # Append neighbors, ensure no duplicates
+                for n in nbrs:
+                    if n not in result[source][rel]:
+                        result[source][rel].append(n)
+
+        return result

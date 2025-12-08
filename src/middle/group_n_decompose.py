@@ -27,7 +27,7 @@ class GroupNDecompose:
 
         return entity.startswith("unknown_")
 
-    def group_n_decompose(self, triplets: list[str]) -> tuple[dict, list[dict[str, str]]]:
+    def group_n_decompose(self, triplets: list[str]) -> tuple[dict, list[dict[str, str]], dict[str, dict[str, list]]]:
         """
         Group and decompose triplets based on entity types.
         """
@@ -122,7 +122,7 @@ class GroupNDecompose:
         return {
             "complete_triplets": completed,
             "incomplete_groups": grouped,
-        }, parsed_entities
+        }, parsed_entities, kg_ref
 
     def normalize_relation(self, triplet_dicts: list[dict[str, str]]):
         """

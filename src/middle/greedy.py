@@ -10,7 +10,7 @@ class Greedy:
         self.kg_connector = kg_connector
         self.sim = sim if sim is not None else Similarity()
 
-    def greedy_2(self, standardized_triplets: list[dict[str, str]], greedy_level: int = 1) -> str:
+    def greedy_2(self, standardized_triplets: list[dict[str, str]], greedy_level: int = 2) -> str:
         """
         Return True if any triplet supports the claim.
         """
@@ -27,7 +27,7 @@ class Greedy:
         greedy_triplets = self.kg_connector.get_relations_between(entities=list(related_entities))
         return greedy_triplets
 
-    def greedy(self, triplets: list[dict[str, str]], k_relations = 4) -> str:
+    def greedy_3(self, triplets: list[dict[str, str]], k_relations = 4) -> str:
         """
         Params:
             triplets: list of non-standardized triplet strings
@@ -42,11 +42,6 @@ class Greedy:
             relation = triplet["relation"]
             tail = triplet["tail"]
             parsed.append((head, relation, tail))
-
-        # entity_to_entity : List[Tuple[str, str]]= [] # Store all direct entity to entity relations
-        # for triplet in parsed:
-        #     if not triplet[0].startswith("unknown_") and not triplet[2].startswith("unknown_"):
-        #         entity_to_entity.append( (triplet[0], triplet[2]) )
 
         # These triplets are not completed yet, so we need to complete them
         entity_to_rel : Dict[str, List[str]] = dict()
@@ -84,7 +79,6 @@ class Greedy:
             neighbors[entity] = neighbor_dict
 
         # Now, build the greedy triplets
-        count = 0
         greedy_triplets = []
         for entity, rel_dict in neighbors.items():
             for relation, neighbor_entities in rel_dict.items():
@@ -93,6 +87,78 @@ class Greedy:
                     if triplet_str not in completed:
                         greedy_triplets.append(triplet_str)
                         completed.add(triplet_str)
-                        count += 1
 
         return "\n".join(greedy_triplets)
+
+    def greedy(
+    self,
+    triplets: list[dict[str, str]],
+    k_relations: int = 4,
+    k_neighbors: int = 15,
+    max_hops: int = 2
+) -> str:
+        """
+        Multi-hop greedy KG retrieval.
+
+        - Hop 0: explicit entities từ triplets input
+        - Hop 1..N: lấy neighbors theo candidate relations của các điểm trong frontier
+        """
+
+        frontier = set()
+        for t in triplets:
+            if not t["head"].startswith("unknown_"):
+                frontier.add(t["head"])
+            if not t["tail"].startswith("unknown_"):
+                frontier.add(t["tail"])
+
+        visited = set(frontier)    # đã duyệt
+        all_triplets = set()       # tất cả triplets sinh ra
+
+        def get_candidate_relations(ent: str) -> list[str]:
+            """Lấy tất cả relations gốc của ent từ KG, rồi mở rộng bằng embedding."""
+            # lấy tất cả relation thực tế có trong KG của entity
+            rels = list(self.kg_connector.get_neighbors_multi([ent])[ent].keys())
+
+            # mở rộng lên candidate
+            expanded = []
+            for rel in rels:
+                candidates = self.sim.get_candidate_relations(rel, top_k=k_relations)
+                expanded.extend([x[0] for x in candidates])
+
+            return list(set(expanded))[:k_relations]   # giới hạn lại
+
+        hop = 0
+        current_frontier = frontier.copy()
+
+        while hop < max_hops and current_frontier:
+            next_frontier = set()
+
+            for ent in current_frontier:
+                # lấy candidate relations
+                cand_rels = get_candidate_relations(ent)
+                if not cand_rels:
+                    continue
+
+                # lấy neighbors theo relation
+                neighbor_dict = self.kg_connector.get_neighbors_by_relations(
+                    entity=ent,
+                    relations=cand_rels
+                )
+
+                # tạo triplets + sinh frontier mới
+                for rel, nbrs in neighbor_dict.items():
+                    # limit neighbors per relation
+                    nbrs = nbrs[:k_neighbors]
+
+                    for n in nbrs:
+                        trip = f"<e>{ent}</e> || {rel} || <e>{n}</e>"
+                        all_triplets.add(trip)
+
+                        if n not in visited:
+                            next_frontier.add(n)
+                            visited.add(n)
+
+            current_frontier = next_frontier
+            hop += 1
+
+        return "\n".join(sorted(all_triplets))

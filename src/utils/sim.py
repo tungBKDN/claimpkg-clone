@@ -18,10 +18,10 @@ class Similarity:
         from sentence_transformers import SentenceTransformer
         self.encoder = SentenceTransformer(encoder_model)
 
-        self.kg_relations = []
-        self.relation_embeddings = None
-        self.kg_entities = []
-        self.entity_embeddings = None
+        self.kg_relations : List[str] = []
+        self.relation_embeddings : Optional[np.ndarray] = None
+        self.kg_entities  : List[str] = []
+        self.entity_embeddings : Optional[np.ndarray] = None
 
 
 
@@ -241,5 +241,16 @@ class Similarity:
         top_k_indices = torch.topk(torch.tensor(scores), top_k).indices.tolist()
         return [(reference[i], scores[i].item()) for i in top_k_indices]
 
-    def get_candidate_relations(self, raw_relation: str, top_k: int = 5):
+    def get_candidate_relations(self, raw_relation: str, top_k: int = 5, current_relation: Optional[List[str]] = None):
+        if current_relation is not None:
+            relation_embeddings = []
+            for rel in current_relation:
+                if rel in self.kg_relations:
+                    relation_embeddings.append(self.relation_embeddings[self.kg_relations.index(rel)])
+            relation_embeddings = torch.stack(relation_embeddings)
+            emb = self.encoder.encode([raw_relation], normalize_embeddings=True)[0]
+            scores = relation_embeddings @ emb
+            top_k_indices = torch.topk(torch.tensor(scores), top_k).indices.tolist()
+            return [(current_relation[i], scores[i].item()) for i in top_k_indices]
+
         return self.match_embed(raw_relation, self.kg_relations, self.relation_embeddings, top_k=top_k)

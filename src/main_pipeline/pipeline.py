@@ -31,7 +31,7 @@ class Pipeline:
             self.retrieve_and_union = RetrieveAndUnion(kg_connector=self.kg_connector)
             self.pseudograph_generator = PseudographGeneratorLLM()
             self.basic_sense_llm = BasicSenseLLM()
-            self.greedy = Greedy(kg_connector=self.kg_connector)
+            self.greedy = Greedy(kg_connector=self.kg_connector, sim=self.sim)
         else:
             print("Using Singleton Registry for Pipeline initialization, please update the instance's attributes manually.")
 
@@ -66,7 +66,7 @@ class Pipeline:
             print(triplet)
 
         # 2. Group and decompose Pseudo Graph
-        grouped_decomposed, parsed = self.group_n_decompose.group_n_decompose(triplets=pseudo_graph_string)
+        grouped_decomposed, parsed, kg_adj = self.group_n_decompose.group_n_decompose(triplets=pseudo_graph_string)
 
         print("Grouped and Decomposed Triplets:")
         print(grouped_decomposed)
@@ -75,12 +75,16 @@ class Pipeline:
         unified_triplets = self.retrieve_and_union.retrive_and_union(standardized_triplets=pseudo_graph_string, group_n_decomposed=grouped_decomposed)
 
         # 4. Passing the triplets to the final LLM to generate the final answer
-        final_retrieved_triplets = ""
+        final_retrieved_triplets = []
         for triplet in unified_triplets:
-            final_retrieved_triplets += triplet["triplet_as_string"] + "\n"
+            final_retrieved_triplets.append(triplet["triplet_as_string"])
+        final_retrieved_triplets = list(set(final_retrieved_triplets))  # Remove duplicates
+        final_retrieved_triplets = "\n".join(final_retrieved_triplets)
 
-        final_answer = self.general_llm.submit(claim=claim, graph_string=final_retrieved_triplets)
+        print("\n\nGraph string passed to GeneralLLM:\n", final_retrieved_triplets)
+        final_answer = self.general_llm.submit(claim=claim, graph_string=final_retrieved_triplets, completed=kg_adj)
         if not final_answer["verdict"] == "NotEnoughInfo":
+            # Refine the
             return final_answer
 
         # This is the final step if the final answer is NotEnoughInfo, use greedy query to query all related entities and relations

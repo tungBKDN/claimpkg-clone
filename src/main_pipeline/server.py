@@ -105,7 +105,7 @@ class SingletonRegistry:
         self.pipeline.retrieve_and_union = self.retrieve_and_union
         self.pipeline.basic_sense_llm = self.basic_sense_llm
         self.pipeline.pseudograph_generator = self.pseudograph_generator # This option is currently disabled
-        self.pipeline.greedy = Greedy(kg_connector=self.kg_connector)
+        self.pipeline.greedy = Greedy(kg_connector=self.kg_connector, sim=self.sim)
 
         self.init_timestamp = datetime.now().isoformat()
         print("✓ All resources initialized successfully!")

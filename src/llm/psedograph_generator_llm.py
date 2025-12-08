@@ -25,6 +25,12 @@ RULES:
 - Do NOT hallucinate entities. Only use what is explicit or implied.
 - If a relation is mutual, (eg. sibling), output both directions.
 - More over, if the claim related to other things (for example: about comparing temperature of two cties that are in two different temperature zones, you can add relations of lattitude, or dimensional you can use directions and add that one more to the pseudo-graph together with other that existed).
+- Be flexible in creating instanceOf relations, sometimes it is not explicitly mentioned but it is necessary to add it to the pseudo-graph. Only add instanceOf relations when it is necessary or obviously mentioned.
+
+THESE ARE SOME RELATIONS EXAMPLE AND IT USE CASES:
+- foundingDate: the date when an organization was founded, or a country was established, etc.
+- league: the league that a sports team participates in.
+- vicePresident: the vice president of a country/vice president who works under a president.
 
 ====================
 FEW-SHOT EXAMPLES
@@ -105,7 +111,7 @@ Now convert the next claim into triplets only.
 
 
 class PseudographGeneratorLLM:
-    def __init__(self, model_name: str = "gemini-flash-latest", key=None):
+    def __init__(self, model_name: str = "gemini-2.5-flash", key=None):
         # Activate dotenv
 
         load_dotenv()
